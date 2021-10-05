@@ -1,35 +1,48 @@
-param location string = resourceGroup().location
-param storageAccountName string = 'toylaunch${uniqueString(resourceGroup().id)}'
-param appServiceAppName string = 'toylaunch${uniqueString(resourceGroup().id)}'
-
+@description('The name of the environment. This must be dev, test, or prod.')
 @allowed([
-  'nonprod'
+  'dev'
+  'test'
   'prod'
 ])
-param environmentType string
+param environmentName string = 'dev'
 
-var storageAccountSkuName = (environmentType == 'prod') ? 'Standard_GRS' : 'Standard_LRS'
+@description('The unique name of the solution. This is used to ensure that resource names are unique.')
+@minLength(5)
+@maxLength(30)
+param solutionName string = 'toyhr${uniqueString(resourceGroup().id)}'
 
+@description('The number of App Service plan instances.')
+@minValue(1)
+@maxValue(10)
+param appServicePlanInstanceCount int = 1
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2019-06-01' = {
-  name: storageAccountName
+@description('The name and tier of the App Service plan SKU.')
+param appServicePlanSku object = {
+  name: 'F1'
+  tier: 'Free'
+}
+
+@description('The Azure region into which the resources should be deployed.')
+param location string = resourceGroup().location
+
+var appServicePlanName = '${environmentName}-${solutionName}-plan'
+var appServiceAppName = '${environmentName}-${solutionName}-app'
+
+resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
+  name: appServicePlanName
   location: location
   sku: {
-    name: storageAccountSkuName
+    name: appServicePlanSku.name
+    tier: appServicePlanSku.tier
+    capacity: appServicePlanInstanceCount
   }
-  kind: 'StorageV2'
+}
+
+resource appServiceApp 'Microsoft.Web/sites@2020-06-01' = {
+  name:appServiceAppName
+  location: location
   properties: {
-    accessTier: 'Hot'
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
   }
 }
-
-module appService 'modules/appService.bicep' = {
-  name: 'appService'
-  params: {
-    location: location
-    appServiceAppName: appServiceAppName
-    environmentType: environmentType
-  }
-}
-
-output appServiceAppHostName string = appService.outputs.appServiceAppHostName
