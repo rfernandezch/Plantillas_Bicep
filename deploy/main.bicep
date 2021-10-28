@@ -192,3 +192,4 @@ resource applicationInsights 'Microsoft.Insights/components@2018-05-01-preview' 
     Application_Type: 'web'
   }
 }
+
